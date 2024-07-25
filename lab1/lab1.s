@@ -73,7 +73,7 @@ _start:
 
     ; ((a*b*c)-(c*d*e)) -> r8
     sub r8, r12
-    jns endSetNegative
+    jnc endSetNegative
 
 setNegative:
     inc byte [isNegative]
