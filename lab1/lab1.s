@@ -3,11 +3,11 @@ bits 64
 ;   All numbers are unsigned
 section	.data
     res        dq  0   
-    a          dd  1
-    b          dw  1
-    c          dd  1
-    d          dw  1
-    e          dd  1
+    a          dd  4
+    b          dw  2
+    c          dd  9
+    d          dw  3
+    e          dd  10
     isNegative db  0
 
 section	.text

@@ -1,21 +1,29 @@
 ASM = nasm
 LD = ld
+CC = gcc
 
 ASMFLAGS = -g -f elf64
 LDFLAGS = -static
 
-SRCS = lab1.s
-OBJS = $(SRCS:.s=.o)
+ASM_SRCS = lab1.s
+C_SRCS = main.c
 
-EXE = $(SRCS:.s=)
+ASM_OBJS = $(ASM_SRCS:.s=.o)
 
-all: $(EXE) $(OBJS)
+ASM_EXE = $(ASM_SRCS:.s=)
+C_EXE = $(C_SRCS:.c=)
+
+all: $(ASM_EXE) $(C_EXE)
 
 clean:
-	rm -f $(EXE) $(OBJS)
+	rm -f $(ASM_EXE) $(C_EXE)
 
-$(EXE): $(OBJS)
+$(ASM_EXE): $(ASM_OBJS)
 	$(LD) $(LDFLAGS) $^ -o $@
+	rm -f $^
 
-$(OBJS): $(SRCS) 
+$(ASM_OBJS): $(ASM_SRCS) 
 	$(ASM) $(ASMFLAGS) $^ -o $@
+
+$(C_EXE): $(C_SRCS)
+	$(CC) $^ -o $@
