@@ -2,13 +2,17 @@ bits 64
 ; Sorting columns of rectangular matrix by min elements (max 255x255)
 ; Shaker sort
 section .data
-    rows    db 4
-    columns db 4
+    rows    db 2
+    columns db 2
 
-    matrix  db 1,   2,   3,   4,
-               5,   6,   7,   8,
-               9,   10,  11,  12,
-               13,  14,  15,  16
+    ; align 1
+
+    matrix  db 1,   2   
+            db 3,   4
+
+    min     db 0,   0
+
+    address dq 0,   0
 
 section .text
 
@@ -18,13 +22,114 @@ section .text
     global _start
 
 _start:
-    mov cl, [columns]
+    mov cl, byte [columns]
     cmp cl, 1
-    jle m8
-    mov bl, matrix 
-m1:
-        
+    jbe success
+    mov rbx, matrix
+    xor dx, dx
+row_load:
+    xor rdi, rdi
+    mov al, byte [rbx]
+    push cx
+    mov cl, byte [rows]
+    dec cl
+    cmp cl, 0
+    je min_filling
+search_min_in_column:
+    mov dl, byte [columns]
+    add di, dx
+    mov dl, byte [rbx+rdi]
+    cmp al, dl
+    cmovg ax, dx 
+    loop search_min_in_column
+min_filling:    
+    mov dl, byte [columns]
+    add di, dx
+    mov byte [rbx+rdi], al
+    inc rbx
+    pop cx
+    loop row_load
+    ; finished filling the min array
+    xor rdi, rdi
+    mov rbx, matrix
+    mov cl, byte [columns]
+address_setting:
+    mov qword [address+8*rdi], rbx
+    inc rdi
+    inc rbx
+    loop address_setting
+shaker_sort:
+    xor rdi, rdi
+    mov rbx, min
 
-m8:    
+    ; r8b -> bool swap
+    xor r8b, r8b
+    ; r9b -> upper counter
+    xor r9b, r9b
+    ; r10b -> lower counter
+    xor r10b, r10b
+    ; r11b -> upper index
+    xor r11, r11
+    ; r12b -> lower index
+    movzx r12, cl
+    
+    ;dec r12b
+    mov cl, byte [columns]
+    push cx
+    dec cl
+upper_iter:
+    mov al, byte [rbx+r11]
+    mov dl, byte [rbx+r11+1]
+    cmp al, dl
+    jg upper_swap 
+    inc r11b
+    loop upper_iter  
+after_upper_iter:
+    cmp r8b, 0
+    je success
+    xor r8b, r8b
+    xor r11b, r11b
+    inc r9b
+    sub r12b, r9b  
+    pop cx
+    dec cl
+    cmp cl, 1
+    je success
+    push cx
+lower_iter:
+    mov al, byte [rbx+r12]
+    mov dl, byte [rbx+r12-1]
+    cmp al, dl
+    jl lower_swap
+    dec r12b
+    loop lower_iter 
+after_lower_iter:
+    cmp r8b, 0
+    je success
+    xor r8b, r8b
+    mov r12b, byte [columns]
+    dec r12b
+    inc r10b
+    add r11b, r10b
+    pop cx
+    loop upper_iter
+upper_swap:
+    inc r8b
+    mov byte [rbx+r11], dl
+    mov byte [rbx+r11+1], al
+     
+    inc r11b
+    loop upper_iter   
+    jmp after_upper_iter
+lower_swap:
+    inc r8b
+    mov byte [rbx+r12], dl
+    mov byte [rbx+r12-1], al
+    
+    dec r12b
+    loop lower_iter
+    jmp after_lower_iter
+success:   
+    mov rdi, 0 
     mov rax, 60
     syscall
