@@ -51,9 +51,6 @@ _start:
     or rax, rdx
     mul r10
     ovf_check
-    ; Checking the oldest bite
-    test rax, rax
-    js ovf_handler
     mov r12, rax
 
     ; (a/b) -> r9d
@@ -73,7 +70,10 @@ _start:
 
     ; ((a*b*c)-(c*d*e)) -> r8
     sub r8, r12
+    ; Here carry flag means that r8 < r12
     jnc endSetNegative
+    ; If signed flag is not set that means overflow
+    jns ovf_handler
 
 setNegative:
     inc byte [isNegative]
