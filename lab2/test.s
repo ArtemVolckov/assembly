@@ -3,11 +3,11 @@ section .data
 section .text
     global _start
 _start:
-    ;mov rax, 0
-    ;mov rbx, 18446744073709551615
-    mov al, 126
-    mov bl, 255
-    sub al, bl
+    mov al, 1
+    dec al
+    mov bl, 1
+    jz end
+    mov cx, 1
 end:
     mov rax, 60
     syscall
