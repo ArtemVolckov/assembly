@@ -2,18 +2,19 @@ bits 64
 ; Sorting columns of rectangular matrix by min elements (max matrix size - 255x255)
 ; Shaker sort
 section .data
-    rows    db 1
+    rows    db 2
     columns db 4
 
     ; align 1
 
     matrix  db 4,   3,   2,   1  
+            db 5,   6,   7,   8
 
     min     db 0,   0,   0,   0
     
     align 8
 
-    address dq 0,   0,   0,   0
+    address dq matrix, matrix+1, matrix+2, matrix+3
 
 section .text
 
@@ -27,55 +28,57 @@ _start:
     cmp cl, 1
     jbe success
     mov rbx, matrix
-    xor dx, dx
-row_load:
     xor rdi, rdi
-    mov al, byte [rbx]
+    ; rsi -> number of rows
+    mov sil, byte [rows]
+    ; r13 -> number of columns
+    mov r13w, cx
+column_load:
     push cx
-    mov cl, byte [rows]
+    mov al, byte [rbx]
+    mov cl, sil
     dec cl
     cmp cl, 0
-    je min_filling
-search_min_in_column:
-    mov dl, byte [columns]
-
-    ; go to the next row
-    add di, dx
-
+    je min_insert
+min_search_loop:
+    add di, r13w
     mov dl, byte [rbx+rdi]
     cmp al, dl
     cmovg ax, dx 
-    loop search_min_in_column
-min_filling:    
-    mov dl, byte [columns]
-    add di, dx
+    loop min_search_loop
+min_insert:    
+    add di, r13w
     mov byte [rbx+rdi], al
     inc rbx
     pop cx
-    loop row_load
+    xor di, di
+    loop column_load
     ; finished filling the min array
 
+; disabled code. old version -> address = {0} (all zeros)
+%if 0 
     xor di, di
     mov rbx, matrix
-    mov cl, byte [columns]
+    mov cl, r13b
 address_setting:
     mov qword [address+8*rdi], rbx
     inc dil
     inc rbx
     loop address_setting
-shaker_sort_prepart:
-    ; TODO
-    xor dil, dil
+%endif
+
+shaker_sort_prepare:
     mov rbx, min
-    mov cl, byte [columns] 
+    mov rdi, address
+    mov cl, r13b
     dec cl
     push cx
 
-    ; r8b -> bool swap
+    ; r8 -> bool swap
     xor r8b, r8b
-    ; r9b -> upper counter
+    ; r9 -> upper counter
     mov r9b, cl
-    ; r10b -> lower counter
+    ; r10 -> lower counter
     xor r10b, r10b
     ; r11 -> upper index
     xor r11, r11
@@ -132,14 +135,10 @@ upper_swap:
     mov byte [rbx+r11], dl
     mov byte [rbx+r11+1], al
     ; swap address[r11], address[r11+1]
-    mov rbx, address
-    mov rax, qword [rbx+r11*8]
-    mov rdx, qword [rbx+r11*8+8]
-    mov qword [rbx+r11*8], rdx
-    mov qword [rbx+r11*8+8], rax
-    xor rax, rax
-    xor rdx, rdx
-    mov rbx, min
+    mov rax, qword [rdi+r11*8]
+    mov rdx, qword [rdi+r11*8+8]
+    mov qword [rdi+r11*8], rdx
+    mov qword [rdi+r11*8+8], rax
     inc r11b
     dec cl
     jnz upper_iter
@@ -151,52 +150,49 @@ lower_swap:
     mov byte [rbx+r12], dl
     mov byte [rbx+r12-1], al
     ; swap address[r12], address[r12-1]
-    mov rbx, address
-    mov rax, qword [rbx+r12*8]
-    mov rdx, qword [rbx+r12*8-8]
-    xor rax, rax
-    xor rdx, rdx
-    mov rbx, min
+    mov rax, qword [rdi+r12*8]
+    mov rdx, qword [rdi+r12*8-8]
+    mov qword [rdi+r12*8], rdx
+    mov qword [rdi+r12*8-8], rax
     dec r12b     
     dec cl
     jnz lower_iter
     jmp after_lower_iter
 matrix_swap_prepare:
-    mov cl, byte [columns]  
+    mov cl, r13b  
     dec cl
-    ; r8 -> source address
+    ; r8 -> current address
     mov r8, matrix
-    ; r9 -> destination address
+    ; r9 -> required address
     mov r9, qword [address]
-    ; r10 -> qword [address]
-    mov r10, r9
-    ; r11b -> number of rows
-    mov r11b, byte [rows]
-    ; r12b -> number of columns
-    mov r12b, byte [columns]
 check_address_match:
-    cmp r8, r9
+    ; if((address[i])==(&matrix+i))
+    cmp r9, r8
     jne address_search_prepare 
     inc r8
     add r9, 8
     loop check_address_match
     jmp success
 address_search_prepare:
-    push cx
-    mov cl, byte [columns] 
-address_search:
-    cmp r8, r10
-    je column_swap_loop
-    add r10, 8
-    loop address_search
-column_swap_loop:
+    ;push cx
+    ;mov cl, byte [columns] 
     
-     
-    mov r10, qword [address] 
-    pop cx
-    cmp cx, 1
-    je success
-    jmp check_address_match     
+    ; j = i
+    mov r11b, dil 
+address_search:
+    inc r8
+    ; j += 1
+    inc r11b
+    ; if((address[i])==(&matrix+j))
+    cmp r9, r8
+    je column_swap_loop_prepare 
+    jmp address_search
+column_swap_loop_prepare:
+    mov cl, byte [rows] 
+column_swap_loop:
+    ;mov al, byte [rbx+j] 
+address_array_change:
+    
 success:   
     mov rdi, 0 
     mov rax, 60
