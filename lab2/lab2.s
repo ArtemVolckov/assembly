@@ -161,38 +161,28 @@ lower_swap:
 matrix_swap_prepare:
     mov cl, r13b  
     dec cl
-    ; r8 -> current address
-    mov r8, matrix
-    ; r9 -> required address
-    mov r9, qword [address]
+    xor r11b, r11b 
+    xor r12b, r12b
+    mov rbx, matrix
 check_address_match:
     ; if((address[i])==(&matrix+i))
-    cmp r9, r8
-    jne address_search_prepare 
-    inc r8
-    add r9, 8
+    mov r11, qword [rdi]
+    cmp r11, rbx
+    jne column_swap 
+    inc rbx
+    add rdi, 8
     loop check_address_match
     jmp success
-address_search_prepare:
-    ;push cx
-    ;mov cl, byte [columns] 
-    
-    ; j = i
-    mov r11b, dil 
-address_search:
-    inc r8
-    ; j += 1
-    inc r11b
-    ; if((address[i])==(&matrix+j))
-    cmp r9, r8
-    je column_swap_loop_prepare 
-    jmp address_search
-column_swap_loop_prepare:
-    mov cl, byte [rows] 
-column_swap_loop:
-    ;mov al, byte [rbx+j] 
-address_array_change:
-    
+column_swap:
+    mov al, [rbx+r12]
+    mov dl, [r11+r12]
+    mov [rbx+r12], dl
+    mov [r11+r12], al
+    add r12w, r13w
+    dec sil
+    jnz column_swap
+    mov sil, byte [rows]
+    xor r12w, r12w
 success:   
     mov rdi, 0 
     mov rax, 60
