@@ -2,7 +2,7 @@ ASM = nasm
 LD = ld
 
 ASMFLAGS = -g -f elf64
-LDFLAGS = -static -g
+LDFLAGS = -static
 
 SRCS = lab2.s
 OBJS = $(SRCS:.s=.o)

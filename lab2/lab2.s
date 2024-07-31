@@ -2,18 +2,20 @@ bits 64
 ; Sorting columns of rectangular matrix by min elements (max matrix size - 255x255)
 ; Shaker sort
 section .data
-    rows    db  1
-    columns db  8
+    rows    db  3
+    columns db  4
 
     ; align 1
 
-    matrix  db  6, 3, 2, 5, 1, 4, 7, 8
+    matrix  db  4,  -4,   7, 120
+            db -5, -17,   1,  34
+            db 22,  15, -67, -10
 
-    min     db  0,   0,   0,   0,   0, 0, 0, 0
+    min     db  0,   0,   0,   0
     
     align 8
 
-    address dq  matrix, matrix+1, matrix+2, matrix+3, matrix+4, matrix+5, matrix+6, matrix+7
+    address dq  matrix, matrix+1, matrix+2, matrix+3
 
 section .text
 
@@ -32,6 +34,13 @@ _start:
     mov sil, byte [rows]
     ; r13 -> number of columns
     mov r13w, cx
+    ; check SORT_ORDER
+    mov rax, SORT_ORDER
+    cmp rax, ASCENDING
+    je column_load
+    cmp rax, DESCENDING
+    je column_load
+    jmp error
 column_load:
     push cx
     mov al, byte [rbx]
@@ -84,14 +93,17 @@ shaker_sort_prepare:
     ; r12 -> lower index
     xor r12, r12
     
-upper_iter:
+    mov al, SORT_ORDER
+    cmp al, DESCENDING
+    je upper_iter_descending 
+upper_iter_ascending:
     mov al, byte [rbx+r11]
     mov dl, byte [rbx+r11+1]
     cmp al, dl
-    jg upper_swap 
+    jg upper_swap_ascending 
     inc r11b
-    loop upper_iter  
-after_upper_iter:
+    loop upper_iter_ascending  
+after_upper_iter_ascending:
     cmp r8b, 0
     je matrix_swap_prepare
     pop cx
@@ -105,14 +117,14 @@ after_upper_iter:
     dec r9b
     ; lower index = upper counter
     mov r12b, r9b
-lower_iter:
+lower_iter_ascending:
     mov al, byte [rbx+r12]
     mov dl, byte [rbx+r12-1]
     cmp al, dl
-    jl lower_swap
+    jl lower_swap_ascending
     dec r12b
-    loop lower_iter 
-after_lower_iter:
+    loop lower_iter_ascending 
+after_lower_iter_ascending:
     cmp r8b, 0
     je matrix_swap_prepare
     pop cx
@@ -126,8 +138,8 @@ after_lower_iter:
     inc r10b
     ; upper index = lower counter
     mov r11b, r10b 
-    jmp upper_iter
-upper_swap:
+    jmp upper_iter_ascending
+upper_swap_ascending:
     ; bool swap -> true
     inc r8b
     ; swap min[r11], min[r11+1]
@@ -140,9 +152,9 @@ upper_swap:
     mov qword [rdi+r11*8+8], rax
     inc r11b
     dec cl
-    jnz upper_iter
-    jmp after_upper_iter 
-lower_swap:
+    jnz upper_iter_ascending
+    jmp after_upper_iter_ascending 
+lower_swap_ascending:
     ; bool swap -> true
     inc r8b
     ; swap min[r12], min[r12-1]
@@ -155,8 +167,81 @@ lower_swap:
     mov qword [rdi+r12*8-8], rax
     dec r12b     
     dec cl
-    jnz lower_iter
-    jmp after_lower_iter
+    jnz lower_iter_ascending
+    jmp after_lower_iter_ascending
+upper_iter_descending:
+    mov al, byte [rbx+r11]
+    mov dl, byte [rbx+r11+1]
+    cmp al, dl
+    jl upper_swap_descending 
+    inc r11b
+    loop upper_iter_descending  
+after_upper_iter_descending:
+    cmp r8b, 0
+    je matrix_swap_prepare
+    pop cx
+    dec cl
+    cmp cl, 0
+    je matrix_swap_prepare
+    push cx
+    ; bool swap -> false
+    xor r8b, r8b
+    ; upper counter -= 1
+    dec r9b
+    ; lower index = upper counter
+    mov r12b, r9b
+lower_iter_descending:
+    mov al, byte [rbx+r12]
+    mov dl, byte [rbx+r12-1]
+    cmp al, dl
+    jg lower_swap_descending
+    dec r12b
+    loop lower_iter_descending 
+after_lower_iter_descending:
+    cmp r8b, 0
+    je matrix_swap_prepare
+    pop cx
+    dec cl
+    cmp cl, 0
+    je matrix_swap_prepare
+    push cx
+    ; bool swap -> false
+    xor r8b, r8b
+    ; lower counter += 1
+    inc r10b
+    ; upper index = lower counter
+    mov r11b, r10b 
+    jmp upper_iter_descending
+upper_swap_descending:
+    ; bool swap -> true
+    inc r8b
+    ; swap min[r11], min[r11+1]
+    mov byte [rbx+r11], dl
+    mov byte [rbx+r11+1], al
+    ; swap address[r11], address[r11+1]
+    mov rax, qword [rdi+r11*8]
+    mov rdx, qword [rdi+r11*8+8]
+    mov qword [rdi+r11*8], rdx
+    mov qword [rdi+r11*8+8], rax
+    inc r11b
+    dec cl
+    jnz upper_iter_descending
+    jmp after_upper_iter_descending 
+lower_swap_descending:
+    ; bool swap -> true
+    inc r8b
+    ; swap min[r12], min[r12-1]
+    mov byte [rbx+r12], dl
+    mov byte [rbx+r12-1], al
+    ; swap address[r12], address[r12-1]
+    mov rax, qword [rdi+r12*8]
+    mov rdx, qword [rdi+r12*8-8]
+    mov qword [rdi+r12*8], rdx
+    mov qword [rdi+r12*8-8], rax
+    dec r12b     
+    dec cl
+    jnz lower_iter_descending
+    jmp after_lower_iter_descending
 matrix_swap_prepare:
     mov cl, r13b  
     dec cl
@@ -196,5 +281,9 @@ address_array_update:
     loop check_address_match 
 success:   
     mov rdi, 0 
+    mov rax, 60
+    syscall
+error:
+    mov rdi, 1
     mov rax, 60
     syscall
