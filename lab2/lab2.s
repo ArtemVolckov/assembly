@@ -2,19 +2,18 @@ bits 64
 ; Sorting columns of rectangular matrix by min elements (max matrix size - 255x255)
 ; Shaker sort
 section .data
-    rows    db 2
-    columns db 4
+    rows    db  1
+    columns db  8
 
     ; align 1
 
-    matrix  db 4,   3,   2,   1  
-            db 5,   6,   7,   8
+    matrix  db  6, 3, 2, 5, 1, 4, 7, 8
 
-    min     db 0,   0,   0,   0
+    min     db  0,   0,   0,   0,   0, 0, 0, 0
     
     align 8
 
-    address dq matrix, matrix+1, matrix+2, matrix+3
+    address dq  matrix, matrix+1, matrix+2, matrix+3, matrix+4, matrix+5, matrix+6, matrix+7
 
 section .text
 
@@ -164,6 +163,7 @@ matrix_swap_prepare:
     xor r11b, r11b 
     xor r12b, r12b
     mov rbx, matrix
+    ; rdi -> address
 check_address_match:
     ; if((address[i])==(&matrix+i))
     mov r11, qword [rdi]
@@ -182,7 +182,18 @@ column_swap:
     dec sil
     jnz column_swap
     mov sil, byte [rows]
-    xor r12w, r12w
+    push rdi
+address_array_update:
+    add rdi, 8
+    mov r12, qword [rdi]
+    cmp rbx, r12
+    jne address_array_update
+    mov qword [rdi], r11 
+    xor r12, r12
+    inc rbx
+    pop rdi
+    add rdi, 8
+    loop check_address_match 
 success:   
     mov rdi, 0 
     mov rax, 60
