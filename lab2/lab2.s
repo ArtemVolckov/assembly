@@ -11,7 +11,7 @@ section .data
             db -5, -17,   1,  34
             db 22,  15, -67, -10
 
-    min     db  0,   0,   0,   0
+    min     times  4  db  0
     
     align 8
 
