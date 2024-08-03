@@ -1,6 +1,6 @@
 bits 64
-; Sorting columns of rectangular matrix by min elements (max matrix size - 255x255)
-; Shaker sort
+;   Sorting columns of rectangular matrix by min elements (max matrix size - 255x255)
+;   Shaker sort
 section .data
     rows    db  3
     columns db  4
@@ -41,6 +41,7 @@ _start:
     cmp rax, DESCENDING
     je column_load
     jmp error
+    
 column_load:
     push cx
     mov al, byte [rbx]
@@ -48,12 +49,14 @@ column_load:
     dec cl
     cmp cl, 0
     je min_insert
+
 min_search_loop:
     add di, r13w
     mov dl, byte [rbx+rdi]
     cmp al, dl
     cmovg ax, dx 
     loop min_search_loop
+
 min_insert:    
     add di, r13w
     mov byte [rbx+rdi], al
@@ -68,6 +71,7 @@ min_insert:
     xor di, di
     mov rbx, matrix
     mov cl, r13b
+
 address_setting:
     mov qword [address+8*rdi], rbx
     inc dil
@@ -96,6 +100,7 @@ shaker_sort_prepare:
     mov al, SORT_ORDER
     cmp al, DESCENDING
     je upper_iter_descending 
+
 upper_iter_ascending:
     mov al, byte [rbx+r11]
     mov dl, byte [rbx+r11+1]
@@ -103,6 +108,7 @@ upper_iter_ascending:
     jg upper_swap_ascending 
     inc r11b
     loop upper_iter_ascending  
+
 after_upper_iter_ascending:
     cmp r8b, 0
     je matrix_swap_prepare
@@ -117,6 +123,7 @@ after_upper_iter_ascending:
     dec r9b
     ; lower index = upper counter
     mov r12b, r9b
+
 lower_iter_ascending:
     mov al, byte [rbx+r12]
     mov dl, byte [rbx+r12-1]
@@ -124,6 +131,7 @@ lower_iter_ascending:
     jl lower_swap_ascending
     dec r12b
     loop lower_iter_ascending 
+
 after_lower_iter_ascending:
     cmp r8b, 0
     je matrix_swap_prepare
@@ -139,6 +147,7 @@ after_lower_iter_ascending:
     ; upper index = lower counter
     mov r11b, r10b 
     jmp upper_iter_ascending
+
 upper_swap_ascending:
     ; bool swap -> true
     inc r8b
@@ -154,6 +163,7 @@ upper_swap_ascending:
     dec cl
     jnz upper_iter_ascending
     jmp after_upper_iter_ascending 
+
 lower_swap_ascending:
     ; bool swap -> true
     inc r8b
@@ -169,6 +179,7 @@ lower_swap_ascending:
     dec cl
     jnz lower_iter_ascending
     jmp after_lower_iter_ascending
+
 upper_iter_descending:
     mov al, byte [rbx+r11]
     mov dl, byte [rbx+r11+1]
@@ -176,6 +187,7 @@ upper_iter_descending:
     jl upper_swap_descending 
     inc r11b
     loop upper_iter_descending  
+
 after_upper_iter_descending:
     cmp r8b, 0
     je matrix_swap_prepare
@@ -190,6 +202,7 @@ after_upper_iter_descending:
     dec r9b
     ; lower index = upper counter
     mov r12b, r9b
+
 lower_iter_descending:
     mov al, byte [rbx+r12]
     mov dl, byte [rbx+r12-1]
@@ -197,6 +210,7 @@ lower_iter_descending:
     jg lower_swap_descending
     dec r12b
     loop lower_iter_descending 
+
 after_lower_iter_descending:
     cmp r8b, 0
     je matrix_swap_prepare
@@ -212,6 +226,7 @@ after_lower_iter_descending:
     ; upper index = lower counter
     mov r11b, r10b 
     jmp upper_iter_descending
+
 upper_swap_descending:
     ; bool swap -> true
     inc r8b
@@ -227,6 +242,7 @@ upper_swap_descending:
     dec cl
     jnz upper_iter_descending
     jmp after_upper_iter_descending 
+
 lower_swap_descending:
     ; bool swap -> true
     inc r8b
@@ -242,6 +258,7 @@ lower_swap_descending:
     dec cl
     jnz lower_iter_descending
     jmp after_lower_iter_descending
+
 matrix_swap_prepare:
     mov cl, r13b  
     dec cl
@@ -249,6 +266,7 @@ matrix_swap_prepare:
     xor r12b, r12b
     mov rbx, matrix
     ; rdi -> address
+
 check_address_match:
     ; if((address[i])==(&matrix+i))
     mov r11, qword [rdi]
@@ -258,6 +276,7 @@ check_address_match:
     add rdi, 8
     loop check_address_match
     jmp success
+
 column_swap:
     mov al, [rbx+r12]
     mov dl, [r11+r12]
@@ -268,6 +287,7 @@ column_swap:
     jnz column_swap
     mov sil, byte [rows]
     push rdi
+
 address_array_update:
     add rdi, 8
     mov r12, qword [rdi]
@@ -279,10 +299,12 @@ address_array_update:
     pop rdi
     add rdi, 8
     loop check_address_match 
+
 success:   
     mov rdi, 0 
     mov rax, 60
     syscall
+
 error:
     mov rdi, 1
     mov rax, 60

@@ -100,15 +100,15 @@ signedDivision:
  
 success:
     mov qword [res], rax
-    mov edi, SUCCESS    
+    mov rdi, SUCCESS    
     jmp exit
 
 division_by_zero_handler:
-    mov edi, DIVBYZERO   
+    mov rdi, DIVBYZERO   
     jmp exit
 
 ovf_handler:
-    mov edi, OVF   
+    mov rdi, OVF   
     jmp exit
 
 exit:
