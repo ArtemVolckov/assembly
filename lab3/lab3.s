@@ -64,7 +64,7 @@ _start:
     cmp dword [rsp], 2
     jne err_wrong_format
 
-search_env:
+get_1st_arg:
     ; rdi -> name of env
     mov rdi, [rsp+16] 
     mov rbx, 3
@@ -78,14 +78,14 @@ get_env:
     je err_miss_env_end
     xor rcx, rcx
 
-m5:
+search_mismatch_character:
     mov al, [rdi+rcx]
     cmp al, [rsi+rcx]
-    jne m6
+    jne check_env
     inc rcx
-    jmp m5
+    jmp search_mismatch_character
 
-m6:
+check_env:
     ; check if reached end of input env name
     or al, al
     jne get_env
@@ -94,6 +94,7 @@ m6:
     cmp byte [rsi+rcx], "="
     jne get_env
 
+    ; rsi -> address of the file name
     lea rsi, [rsi+rcx+1]
 
 open_file:
