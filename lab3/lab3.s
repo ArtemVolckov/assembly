@@ -13,26 +13,32 @@ section .data
 
     err_close db "Can not close the file", 10
     err_close_len equ $-err_close
+
+    new_line db 10
+    space db ' '
     
 section .bss
     ; Define buffers for storing characters and lines.
     char_buffer resb 1 
-
+ 
     word_buffer resb 16 
     word_buffer_size equ $-word_buffer
 
     line_buffer resb 64
     line_buffer_size equ $-line_buffer
-
+ 
     ; file descriptor
-    fd  resq  1
+    fd resq 1
+
+    ; boolean variable shows if we found beggining of the first word
+    found_first_word resb 1
+
+    ; boolean variable shows if we write first word. Mark for searching a new word
+    write_first_word resb 1
+
+    ; boolean variable shows if we found new word. Mark for loading a new word
+    found_new_word resb 1
     
-    ; boolean variable if there is a word in the string
-    is_word  resb  1
-
-    ; boolean variable if there is end of a string
-    is_end  resb  1
-
 section .text
 
 %define ERR_OPEN  1
@@ -46,8 +52,8 @@ _start:
     ; open file
     mov rax, 2
     mov rdi, [rsp+16]
-    ; rsi -> write only
-    mov rsi, 1
+    ; rsi -> 512 | 1 (O_TRUNC & O_WONLY)
+    mov rsi, 513
     ; rdx -> file flags (if new file)
     xor rdx, rdx
     syscall
@@ -67,54 +73,179 @@ read_line:
     mov rdx, line_buffer_size 
     syscall
     
-    ; check read error 
-    test rax, rax
-    js err_read_end
+    ; check read error + EOF
+    cmp rax, 0
+    jl err_read_end
+    je close_file
     
-    ; r8 -> counter
+    ; r8 -> counter for line buffer
     xor r8, r8
     dec r8
+
+    cmp byte [found_first_word], 1
+    je search_last_symbol
+
+    cmp byte [write_first_word], 1
+    je search_new_word
+
+    cmp byte [found_new_word], 1
+    je load_new_word
     
 search_first_word:
     inc r8
     cmp r8, line_buffer_size
-    je m2
+    je read_line
+    mov al, byte [line_buffer+r8]
 
     ; check if space
-    cmp byte [line_buffer+r8], ' '
+    cmp al, ' '
     je search_first_word
 
     ; check if tab
-    cmp byte [line_buffer+r8], 9
+    cmp al, 9
     je search_first_word
 
-    ; check if new line symbol
-    cmp byte [line_buffer+r8], 10
-    je m3
+    ; check if new line symbol (if true -> write empty line)
+    cmp al, 10
+    je write_new_line
+  
+    mov byte [found_first_word], 1 
+    ; r10 -> counter for word buffer
+    xor r10, r10 
+    ; saving first symbol of the first word 
+    mov byte [word_buffer], al
+
+search_last_symbol:
+    inc r8
+    cmp r8, line_buffer_size
+    je read_line 
+    mov al, byte [line_buffer+r8]
+
+    cmp al, ' '
+    je save_last_symbol
+
+    cmp al, 9
+    je save_last_symbol
+
+    inc r10
+    cmp al, 10
+    je write_word
     
-    mov byte [is_word], 1
-
-m2:
-    cmp byte [is_word], 0
-    je read_line
-
-    jmp end
+    mov byte [word_buffer+r10], al
+    jmp search_last_symbol
  
-    mov rcx, line_buffer_size
+save_last_symbol:
+    ; saving last symbol of the first word
+    mov al, byte [word_buffer+r10]  
+    mov byte [char_buffer], al
+    inc r10
+    
+    mov byte [write_first_word], 1
+    mov byte [found_first_word], 0
+    jmp write_word
+    
+search_new_word:
+    inc r8
+    cmp r8, line_buffer_size
+    je read_line 
+    mov al, byte [line_buffer+r8]
 
+    cmp al, ' '
+    je search_new_word
+
+    cmp al, 9
+    je search_new_word
+
+    cmp al, 10
+    je write_new_line
+    
+    mov byte [word_buffer], al
+    mov byte [found_new_word], 1
+    mov byte [write_first_word], 0
+
+load_new_word:
+    inc r8
+    cmp r8, line_buffer_size
+    je read_line 
+    mov al, byte [line_buffer+r8]
+    inc r10
+
+    cmp al, ' '
+    je check_not_last_word
+
+    cmp al, 9
+    je check_not_last_word
+
+    cmp al, 10
+    je after_check_not_last_word
+    
+    mov byte [word_buffer+r10], al
+    jmp load_new_word
+
+check_not_last_word:
+    mov byte [write_first_word], 1
+    mov byte [found_new_word], 0
+
+after_check_not_last_word:
+    mov r11, r10
+    dec r11
+    mov rsi, word_buffer
+    add rsi, r11
+    mov rdi, char_buffer
+    ; comparing bytes
+    cmpsb
+    je write_space 
+    
+    xor r10, r10
+    cmp byte [write_first_word], 1
+    je search_new_word
+
+    jmp write_new_line
+
+write_space:
     ; write into file
     mov rax, 1
     mov rdi, qword [fd]
-    mov rsi, line_buffer
-    mov rdx, line_buffer_size
+    mov rsi, space
+    mov rdx, 1
     syscall
 
     ; check write error 
     test rax, rax
     js err_write_end
 
-file_close:
-    ; close file
+write_word:
+    mov rax, 1
+    mov rdi, qword [fd]
+    mov rsi, word_buffer
+    mov rdx, r10 
+    syscall
+    
+    test rax, rax
+    js err_write_end
+    
+    xor r10, r10
+    
+    cmp byte [write_first_word], 1
+    je search_new_word
+
+write_new_line:
+    mov rax, 1
+    mov rdi, qword [fd]
+    mov rsi, new_line
+    mov rdx, 1
+    syscall
+
+    test rax, rax
+    js err_write_end
+
+    mov byte [found_first_word], 0
+    mov byte [write_first_word], 0
+    mov byte [found_new_word], 0
+    jmp read_line
+
+close_file:
+    ; closing file
     mov rax, 3
     mov rdi, qword [fd]
     syscall
