@@ -2,6 +2,15 @@ bits 64
 ;   String handling. Deleting words whose last character does not match the last character of the first word
 ;   Input - standart input (stdin); Output - file
 section .data
+    err_msg1 db "Usage: "
+    err_msg1_len equ $-err_msg1
+
+    err_msg2 db " name_of_environment_variable", 10
+    err_msg2_len equ $-err_msg2
+
+    err_msg3 db "Not found env", 10
+    err_msg3_len equ $-err_msg3
+
     err_open db "Can not open the file", 10
     err_open_len equ $-err_open
 
@@ -46,12 +55,50 @@ section .text
 %define ERR_WRITE 3
 %define ERR_CLOSE 4
 
+%define ERR_WRONG_FORMAT 5
+%define ERR_MISS_ENV     6
+
     global _start
 
 _start:
-    ; open file
+    cmp dword [rsp], 2
+    jne err_wrong_format
+
+search_env:
+    ; rdi -> name of env
+    mov rdi, [rsp+16] 
+    mov rbx, 3
+
+get_env:
+    ; env array starts with [rsp+32]
+    inc rbx
+    mov rsi, [rsp+rbx*8]
+    ; check if end of array
+    or rsi, rsi
+    je err_miss_env_end
+    xor rcx, rcx
+
+m5:
+    mov al, [rdi+rcx]
+    cmp al, [rsi+rcx]
+    jne m6
+    inc rcx
+    jmp m5
+
+m6:
+    ; check if reached end of input env name
+    or al, al
+    jne get_env
+
+    ; check if reached end of array env name
+    cmp byte [rsi+rcx], "="
+    jne get_env
+
+    lea rsi, [rsi+rcx+1]
+
+open_file:
     mov rax, 2
-    mov rdi, [rsp+16]
+    mov rdi, rsi
     ; rsi -> 512 | 1 (O_TRUNC & O_WONLY)
     mov rsi, 513
     ; rdx -> file flags (if new file)
@@ -256,7 +303,46 @@ close_file:
     
     mov rdi, 0
     jmp end
-   
+
+err_wrong_format:
+    mov rax, 1
+    mov rdi, 2
+    mov rsi, err_msg1
+    mov rdx, err_msg1_len
+    syscall
+
+    mov rax, 1
+    mov rdi, 2
+    mov rsi, [rsp+8]
+    xor rdx, rdx
+
+search_file_name_lenght:
+    cmp byte [rsi+rdx], 0
+    je err_wrong_format_end
+    inc rdx
+    jmp search_file_name_lenght
+
+err_wrong_format_end:
+    syscall
+    mov rax, 1
+    mov rdi, 2
+    mov rsi, err_msg2
+    mov rdx, err_msg2_len
+    syscall
+
+    mov rdi, ERR_WRONG_FORMAT
+    jmp end
+
+err_miss_env_end:
+    mov rax, 1
+    mov rdi, 2
+    mov rsi, err_msg3
+    mov rdx, err_msg3_len
+    syscall
+
+    mov rdi, ERR_MISS_ENV
+    jmp end
+
 err_open_end:
     mov rax, 1
     mov rdi, 2

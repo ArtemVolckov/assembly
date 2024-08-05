@@ -14,7 +14,7 @@ SORT_ORDER ?= 1
 all: $(EXE) 
 
 clean:
-	rm -f $(EXE) 
+	rm -f $(EXE) $(OBJS)
 
 $(EXE): $(OBJS)
 	$(LD) $(LDFLAGS) $^ -o $@

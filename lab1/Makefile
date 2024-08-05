@@ -16,7 +16,7 @@ C_EXE = $(C_SRCS:.c=)
 all: $(ASM_EXE) $(C_EXE)
 
 clean:
-	rm -f $(ASM_EXE) $(C_EXE)
+	rm -f $(ASM_EXE) $(C_EXE) $(ASM_OBJS)
 
 $(ASM_EXE): $(ASM_OBJS)
 	$(LD) $(LDFLAGS) $^ -o $@

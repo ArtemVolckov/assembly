@@ -13,7 +13,7 @@ ASM_EXE = $(ASM_SRCS:.s=)
 all: $(ASM_EXE) 
 
 clean:
-		rm -f $(ASM_EXE)
+		rm -f $(ASM_EXE) $(ASM_OBJS)
 
 $(ASM_EXE): $(ASM_OBJS)
 		$(LD) $(LDFLAGS) $^ -o $@
