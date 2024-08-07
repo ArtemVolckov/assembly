@@ -50,6 +50,7 @@ section .bss
     
 section .text
 
+%define SUCCESS   0
 %define ERR_OPEN  1
 %define ERR_READ  2
 %define ERR_WRITE 3
@@ -302,7 +303,7 @@ close_file:
     test rax, rax
     js err_close_end  
     
-    mov rdi, 0
+    mov rdi, SUCCESS
     jmp end
 
 err_wrong_format:
