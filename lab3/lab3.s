@@ -350,6 +350,7 @@ err_open_end:
     mov rsi, err_open
     mov rdx, err_open_len
     syscall
+
     mov rdi, ERR_OPEN
     jmp end
 
@@ -359,6 +360,7 @@ err_read_end:
     mov rsi, err_read
     mov rdx, err_read_len
     syscall
+
     mov rdi, ERR_READ
     jmp end
 
@@ -368,6 +370,7 @@ err_write_end:
     mov rsi, err_write
     mov rdx, err_write_len
     syscall
+
     mov rdi, ERR_WRITE
     jmp end
 
@@ -377,6 +380,7 @@ err_close_end:
     mov rsi, err_close
     mov rdx, err_close_len
     syscall
+
     mov rdi, ERR_CLOSE
 
 end:
