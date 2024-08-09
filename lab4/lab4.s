@@ -20,7 +20,7 @@ section .rodata
     msg2 db "Enter accuracy (accuracy > 0): ", 0
 
     msg3 db 10, "ln(x + sqrt(x^2 + 1))", 10, 0
-    msg4 db "left: ", 0
+    msg4 db "left:  ", 0
     msg5 db "right: ", 0
     
     new_line db 10, 0
@@ -44,7 +44,6 @@ section .bss
     save_xmm8 resq 1
     save_xmm9 resq 1 
     save_xmm10 resq 1
-    save_xmm11 resq 1
 
     fd resq 1
 
@@ -187,10 +186,9 @@ logarifm_right:
     movsd xmm8, qword [x]
     ; xmm9 -> 2n + 1
     movsd xmm9, qword [three]
-    ; xmm10 -> (2n)!!
-    movsd xmm10, qword [two]
-    ; xmm11 -> (2n - 1)!!
-    movsd xmm11, qword [one] 
+    ; xmm10 -> ((2n - 1)!!)/((2n)!!)
+    movsd xmm10, qword [one] 
+    divsd xmm10, qword [two]
 
 get_and_print_series_member:
     ; print member number
@@ -212,20 +210,15 @@ get_and_print_series_member:
     movsd qword [save_xmm8], xmm8
     movsd qword [save_xmm9], xmm9
     movsd qword [save_xmm10], xmm10
-    movsd qword [save_xmm11], xmm11
     call pow
 
     ; (x^(2n + 1))/(2n + 1)
     movsd xmm9, qword [save_xmm9]
     divsd xmm0, xmm9
 
-    ; ((x^(2n + 1))/(2n + 1))*((2n − 1)!!)
-    movsd xmm11, qword [save_xmm11]
-    mulsd xmm0, xmm11
-
-    ; (((x^(2n + 1))/(2n + 1))*((2n − 1)!!))/((2n)!!)
+    ; ((x^(2n + 1))/(2n + 1))*(2n - 1)!!)/((2n)!!)
     movsd xmm10, qword [save_xmm10]
-    divsd xmm0, xmm10
+    mulsd xmm0, xmm10
 
     ; xmm12 -> save xmm0
     movsd xmm12, xmm0
@@ -264,16 +257,19 @@ after_odd:
     
     cvtsi2sd xmm0, r12
     mulsd xmm0, qword [two]
-    mulsd xmm10, xmm0
-
-    cvtsi2sd xmm0, r12
-    mulsd xmm0, qword [two]
+    divsd xmm10, xmm0 
+    
     subsd xmm0, qword [one]
-    mulsd xmm11, xmm0 
+    mulsd xmm10, xmm0
 
     jmp get_and_print_series_member    
 
 end_logarifm_right:
+    mov rdi, qword [fd]
+    mov rsi, new_line
+    xor rax, rax
+    call fprintf
+
     movsd xmm0, xmm8
     mov rdi, double_format
     call printf
