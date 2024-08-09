@@ -1,5 +1,6 @@
 bits 64 
 ;   fpu operation
+;   natural logarithm calculating 
 section .rodata
     err_msg1 db "Usage: ", 0
 
