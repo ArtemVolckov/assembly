@@ -2,10 +2,8 @@
 // image format - BMP
 
 #include <stdio.h>
-//#include <stdlib.h>
-//#include <math.h>
-//#include <time.h>
-//#include "image.h"
+#include <time.h>
+#include "grayscale_funcs.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -18,60 +16,85 @@
 #define FILE_MISS_ERR  2
 #define FILE_LOAD_ERR  3
 #define FILE_WRITE_ERR 4
+
+// Assembly function
+extern void convert_to_grayscale_s(unsigned char* img, int width, int height, int channels);
+
+void time_conversion(void (*convert_func)(unsigned char*, int, int, int), 
+                     unsigned char* img, int width, int height, int channels, const char* label) {
+    struct timespec t1, t2;
     
-void convert_to_grayscale(unsigned char* img, int width, int height, int channels) {
-    for (int i = 0; i < width * height; i++) {
-        int idx = i * channels;
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &t1);
+        convert_func(img, width, height, channels);
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &t2);
 
-        unsigned char r = img[idx];
-        unsigned char g = img[idx + 1];
-        unsigned char b = img[idx + 2];
+    long seconds = t2.tv_sec - t1.tv_sec;
+    long nanoseconds = t2.tv_nsec - t1.tv_nsec;
 
-        unsigned char gray = (unsigned char)(r * 0.3 + g * 0.59 + b * 0.11);
-
-        img[idx] = gray;
-        img[idx + 1] = gray;
-        img[idx + 2] = gray;
-
-        if (channels == 4) {
-            img[idx + 3] = img[idx + 3];       
-        }
+    if (nanoseconds < 0) {
+        seconds--;
+        nanoseconds += 1000000000;     
     }
+    printf("%s: %ld.%09ld\n", label, seconds, nanoseconds);                             
 }
- 
+    
 int main (int argc, char* argv[]) {
     FILE* f;
     int width, height, channels;    
+    struct timespec t, t1, t2;
 
-    if (argc != 3) {
-        fprintf(stderr, "Usage: %s input_file output_file\n", *argv);
+    if (argc != 4) {
+        fprintf(stderr, "Usage: %s input_image.bmp output_c_image.bmp output_asm_image.bmp\n", *argv);
         return FORMAT_ERR; 
     }
-    for (int i = 1; i < 3; ++i) {
+
+    // check if files exist
+    for (int i = 1; i < 4; ++i) {
         if ((f = fopen(argv[i], "r")) == NULL) {
             perror(argv[i]);
             return FILE_MISS_ERR;
         }
+        fclose(f);
     }
 
     // unsigned char* stbi_load(const char* filename, int* x, int* y, int* comp, int req_comp);
     // comp -> number of channels in the original image (3 - RGB, 4 - RGBA)
     // req_comp -> required number of channels in the uploaded image. If zero -> comp
 
-    unsigned char* img = stbi_load(argv[1], &width, &height, &channels, 0); 
+    // C PART
 
+    unsigned char* img = stbi_load(argv[1], &width, &height, &channels, 0); 
+    
     if (img == NULL) {
-        fprintf(stderr, "Error loading image\n");
+        fprintf(stderr, "Error loading input_image\n");
         return FILE_LOAD_ERR;
     }
-    convert_to_grayscale(img, width, height, channels);
 
+    time_conversion(convert_to_grayscale_c, img, width, height, channels, "C");
+    
     if (stbi_write_bmp(argv[2], width, height, channels, img) == 0) {
-        fprintf(stderr, "Error writing image\n");
+        fprintf(stderr, "Error writing output_c_image\n");
         stbi_image_free(img);
         return FILE_WRITE_ERR;
     }
+
+    // ASM PART
+
+    img = stbi_load(argv[1], &width, &height, &channels, 0); 
+    
+    if (img == NULL) {
+        fprintf(stderr, "Error loading input_image\n");
+        return FILE_LOAD_ERR;
+    }
+
+    time_conversion(convert_to_grayscale_s, img, width, height, channels, "ASM");
+
+    if (stbi_write_bmp(argv[3], width, height, channels, img) == 0) {
+        fprintf(stderr, "Error writing output_asm_image\n");
+        stbi_image_free(img);
+        return FILE_WRITE_ERR;
+    }
+
     stbi_image_free(img);
-    printf("Image converted to grayscale and saved as %s\n", argv[2]);
     return 0;
 }
